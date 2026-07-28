@@ -1,29 +1,48 @@
 /**
  * maildrop — Cloudflare Email Worker
  *
- * Stage 2: MIME parsing + conditional routing.
+ * Stage 3: D1 persistence + HTTP API.
  *
- * Test locally with:
- *   npx wrangler dev
- *   curl -X POST "http://localhost:8787/cdn-cgi/handler/email?from=sender@example.com&to=test@yourdomain.com" \
- *     -H "Content-Type: message/rfc822" \
- *     --data-binary @test-email.eml
+ * email() handler: parse → filter → execute → save to D1.
+ * fetch() handler:
+ *   GET /              → status
+ *   GET /inbox         → list recent emails (JSON)
+ *   GET /inbox/<id>    → single email detail (JSON)
  */
 
 import PostalMime from "postal-mime";
 import { type ParsedEmail, matchRule } from "./filter";
+import { saveEmail, listEmails, getEmail } from "./storage";
 
 export default {
+  // ── HTTP API ─────────────────────────────────────────────────────
   async fetch(
-    _request: Request,
-    _env: Env,
+    request: Request,
+    env: Env,
     _ctx: ExecutionContext,
   ): Promise<Response> {
+    const url = new URL(request.url);
+    const inboxMatch = url.pathname.match(/^\/inbox\/(.+)$/);
+
+    if (url.pathname === "/inbox") {
+      const emails = await listEmails(env.DB);
+      return Response.json(emails);
+    }
+
+    if (inboxMatch) {
+      const email = await getEmail(env.DB, inboxMatch[1]);
+      if (!email) {
+        return new Response("Not found", { status: 404 });
+      }
+      return Response.json(email);
+    }
+
     return new Response("maildrop running\n", {
       headers: { "Content-Type": "text/plain" },
     });
   },
 
+  // ── Email handler ────────────────────────────────────────────────
   async email(
     message: ForwardableEmailMessage,
     env: Env,
@@ -31,7 +50,7 @@ export default {
   ): Promise<void> {
     console.log(`[maildrop] Incoming: ${message.from} -> ${message.to}`);
 
-    // ── 1. Parse raw MIME ──────────────────────────────────────────
+    // Parse raw MIME
     const parser = new PostalMime();
     const parsed = await parser.parse(message.raw);
 
@@ -44,74 +63,65 @@ export default {
     };
 
     console.log(`[maildrop] Subject: ${email.subject}`);
-    console.log(`[maildrop] Body preview: ${email.textPlain.slice(0, 120)}`);
 
-    // ── 2. Match against filter rules ──────────────────────────────
+    // Match against filter rules
     const rule = matchRule(email);
-    console.log(`[maildrop] Rule matched: "${rule.name}" → ${rule.action}`);
+    console.log(`[maildrop] Rule: "${rule.name}" → ${rule.action}`);
 
-    // ── 3. Execute action ──────────────────────────────────────────
+    // Execute action
     switch (rule.action) {
       case "reject":
         message.setReject(rule.target ?? "No reason given");
-        console.log(`[maildrop] REJECTED: ${rule.target}`);
         break;
-
       case "forward":
         if (rule.target && rule.target !== "REPLACE_WITH_VERIFIED_ADDRESS") {
           await message.forward(rule.target);
-          console.log(`[maildrop] FORWARDED to ${rule.target}`);
-        } else {
-          console.log(
-            `[maildrop] FORWARD skipped (no verified target configured)`,
-          );
         }
         break;
-
       case "reply": {
         const replyMime = buildReplyMime(
-          message.to,         // From: our domain
-          message.from,       // To: original sender
+          message.to,
+          message.from,
           email.subject,
           rule.target ?? "Thank you for your email.",
         );
-        // EmailMessage is a runtime constructor available in the Workers
-        // environment; at compile time we use the interface shape instead.
-        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
-        const replyMsg = {
+        await message.reply({
           from: message.to,
           to: message.from,
           raw: replyMime,
-        } as EmailMessage;
-        await message.reply(replyMsg);
-        console.log(`[maildrop] REPLIED to ${message.from}`);
+        } as EmailMessage);
         break;
       }
-
-      case "accept":
-      default:
-        console.log("[maildrop] ACCEPTED (no action)");
-        break;
     }
+
+    // Persist to D1
+    ctx.waitUntil(
+      saveEmail(env.DB, {
+        from: message.from,
+        to: message.to,
+        subject: email.subject,
+        textPlain: email.textPlain,
+        textHtml: email.textHtml,
+        rawSize: message.rawSize,
+        action: rule.action,
+      }),
+    );
   },
 };
 
-/**
- * Build a minimal reply MIME string.
- */
 function buildReplyMime(
   replyFrom: string,
   replyTo: string,
   originalSubject: string,
   body: string,
 ): string {
-  const cleanSubject = originalSubject.startsWith("Re:")
+  const subject = originalSubject.startsWith("Re:")
     ? originalSubject
     : `Re: ${originalSubject}`;
   return [
     `From: ${replyFrom}`,
     `To: ${replyTo}`,
-    `Subject: ${cleanSubject}`,
+    `Subject: ${subject}`,
     `Message-ID: <maildrop-reply-${Date.now()}@local>`,
     "MIME-Version: 1.0",
     'Content-Type: text/plain; charset="UTF-8"',
