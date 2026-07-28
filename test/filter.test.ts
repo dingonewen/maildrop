@@ -80,6 +80,20 @@ describe("matchRule", () => {
     expect(rule.action).toBe("reject");
   });
 
+  it("drops promotional emails", () => {
+    const rule = matchRule(
+      makeEmail({ subject: "BIG SALE this weekend" }),
+    );
+    expect(rule.action).toBe("drop");
+  });
+
+  it("drops emails with promo in subject", () => {
+    const rule = matchRule(
+      makeEmail({ subject: "Exclusive promo code inside" }),
+    );
+    expect(rule.action).toBe("drop");
+  });
+
   it("custom rules override defaults", () => {
     const customRules = [
       {

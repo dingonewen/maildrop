@@ -13,7 +13,7 @@
 		{
 			"binding": "DB",
 			"database_name": "maildrop-db",
-			"database_id": "local-dev"
+			"database_id": "01d546aa-6742-436e-9cda-536744eabc4c"
 		}
 	]
 }

@@ -68,30 +68,38 @@ export default {
     const rule = matchRule(email);
     console.log(`[maildrop] Rule: "${rule.name}" → ${rule.action}`);
 
-    // Execute action
-    switch (rule.action) {
-      case "reject":
-        message.setReject(rule.target ?? "No reason given");
-        break;
-      case "forward":
-        if (rule.target && rule.target !== "REPLACE_WITH_VERIFIED_ADDRESS") {
-          await message.forward(rule.target);
+    // Execute action (wrapped so errors don't bounce the email)
+    try {
+      switch (rule.action) {
+        case "reject":
+          message.setReject(rule.target ?? "No reason given");
+          break;
+        case "drop":
+          // Silently discard — no SMTP response to sender
+          break;
+        case "forward":
+          if (rule.target && rule.target !== "REPLACE_WITH_VERIFIED_ADDRESS") {
+            await message.forward(rule.target);
+          }
+          break;
+        case "reply": {
+          const replyMime = buildReplyMime(
+            message.to,
+            message.from,
+            email.subject,
+            rule.target ?? "Thank you for your email.",
+          );
+          await message.reply({
+            from: message.to,
+            to: message.from,
+            raw: replyMime,
+            headers: new Headers(),
+          } as EmailMessage);
+          break;
         }
-        break;
-      case "reply": {
-        const replyMime = buildReplyMime(
-          message.to,
-          message.from,
-          email.subject,
-          rule.target ?? "Thank you for your email.",
-        );
-        await message.reply({
-          from: message.to,
-          to: message.from,
-          raw: replyMime,
-        } as EmailMessage);
-        break;
       }
+    } catch (err) {
+      console.error(`[maildrop] Action "${rule.action}" failed:`, err);
     }
 
     // Persist to D1

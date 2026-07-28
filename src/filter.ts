@@ -14,7 +14,7 @@ export interface ParsedEmail {
   textHtml?: string;
 }
 
-export type FilterAction = "forward" | "reply" | "reject" | "accept";
+export type FilterAction = "forward" | "reply" | "reject" | "drop" | "accept";
 
 export interface FilterRule {
   name: string;
@@ -49,6 +49,14 @@ export const FILTER_RULES: FilterRule[] = [
     action: "reply",
     target:
       "We received your inquiry. We will get back to you within 24 hours.",
+  },
+  {
+    name: "Drop promotional junk",
+    match: (email) => {
+      const subject = email.subject.toLowerCase();
+      return subject.includes("sale") || subject.includes("promo");
+    },
+    action: "drop",
   },
   {
     name: "Forward urgent messages",
