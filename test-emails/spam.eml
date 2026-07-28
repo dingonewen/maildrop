@@ -1,0 +1,9 @@
+From: bad-actor@spam.example.com
+To: test@yourdomain.com
+Subject: Buy cheap meds now!!!
+Date: Sun, 28 Jul 2026 12:00:00 +0000
+Message-ID: <test.spam.001@maildrop.local>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="UTF-8"
+
+This should be rejected because the sender domain is blocklisted.

@@ -1,0 +1,9 @@
+From: customer@example.com
+To: test@yourdomain.com
+Subject: Inquiry about login issues
+Date: Sun, 28 Jul 2026 12:00:00 +0000
+Message-ID: <test.inquiry.001@maildrop.local>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="UTF-8"
+
+Hi, I am trying to log in but keep getting an error. Can you help?
