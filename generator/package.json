@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "generate": "npx tsx src/index.ts",
+    "clean": "rm -f output/*.eml output/manifest.json",
     "validate": "npx tsx src/validate.ts"
   },
   "dependencies": {
