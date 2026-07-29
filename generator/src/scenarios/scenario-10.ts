@@ -66,11 +66,45 @@ export function generate(po: POData): EmailParts {
     `<p>Best regards,<br>${po.supplier.contactName}<br>${po.supplier.name}<br><a href="mailto:${po.supplier.email}">${po.supplier.email}</a></p>`,
   ].join("\n");
 
+  const packingList = [
+    "PACKING LIST",
+    `${"=".repeat(40)}`,
+    "",
+    `PO Number:      ${po.poNumber}`,
+    `Ship Date:      ${fmtDate(shipDate)}`,
+    `Carrier:        ${carrier}`,
+    `Tracking:       ${tracking}`,
+    `Supplier:       ${po.supplier.name}`,
+    "",
+    `${"=".repeat(40)}`,
+    "ITEMS SHIPPED",
+    `${"=".repeat(40)}`,
+    "",
+    ...po.lines.flatMap((l, i) => [
+      `Line ${i + 1}: ${l.partName}`,
+      `  Part Code:    ${l.partCode}`,
+      `  Quantity:     ${l.quantity} units`,
+      `  Weight:       ${(Math.random() * 50 + 1).toFixed(1)} lbs`,
+      "",
+    ]),
+    `${"-".repeat(40)}`,
+    `Total Pieces:  ${po.lines.length}`,
+    "",
+    "If any items are missing or damaged, please notify us within 48 hours.",
+  ].join("\n");
+
   return {
     from: po.supplier.email,
     to: po.buyerEmail,
     subject: `Shipping Notification for PO ${po.poNumber} — Tracking ${tracking}`,
     text,
     html,
+    attachments: [
+      {
+        filename: `PackingList_${po.poNumber}.txt`,
+        content: packingList,
+        contentType: "text/plain",
+      },
+    ],
   };
 }

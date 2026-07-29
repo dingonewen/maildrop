@@ -4,3 +4,4 @@ dist/
 *.log
 generator/output/
 .DS_Store
+*.zip

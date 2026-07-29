@@ -13,9 +13,15 @@ const OUTPUT_DIR = join(dirname(fileURLToPath(import.meta.url)), "..", "output")
 export interface EmailParts {
   from: string;
   to: string;
+  cc?: string[];
   subject: string;
   text: string;
   html: string;
+  attachments?: Array<{
+    filename: string;
+    content: string;
+    contentType: string;
+  }>;
 }
 
 /**
@@ -35,9 +41,15 @@ export async function writeEML(
   const info = await transporter.sendMail({
     from: parts.from,
     to: parts.to,
+    cc: parts.cc,
     subject: parts.subject,
     text: parts.text,
     html: parts.html,
+    attachments: parts.attachments?.map((a) => ({
+      filename: a.filename,
+      content: Buffer.from(a.content, "utf-8"),
+      contentType: a.contentType,
+    })),
     headers: {
       "X-Scenario": scenario,
       "X-Index": String(index),

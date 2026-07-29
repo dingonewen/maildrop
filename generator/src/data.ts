@@ -24,6 +24,7 @@ export interface POData {
   supplier: Supplier;
   buyerName: string;
   buyerEmail: string;
+  ccTeam: string[];
   creationDate: Date;
   totalValue: number;
   lines: LineItem[];
@@ -58,12 +59,18 @@ export function makeLineItem(): LineItem {
   };
 }
 
+export function makeCCList(): string[] {
+  const count = faker.number.int({ min: 1, max: 3 });
+  return Array.from({ length: count }, () => faker.internet.email());
+}
+
 export function makePOData(lines: number = faker.number.int({ min: 1, max: 5 })): POData {
   return {
     poNumber: `PO-${faker.string.alphanumeric(8).toUpperCase()}`,
     supplier: makeSupplier(),
     buyerName: faker.person.fullName(),
     buyerEmail: faker.internet.email(),
+    ccTeam: makeCCList(),
     creationDate: faker.date.recent({ days: 30 }),
     totalValue: 0, // computed below
     lines: Array.from({ length: lines }, makeLineItem),
