@@ -89,12 +89,10 @@ export default {
             email.subject,
             rule.target ?? "Thank you for your email.",
           );
-          await message.reply({
-            from: message.to,
-            to: message.from,
-            raw: replyMime,
-            headers: new Headers(),
-          } as EmailMessage);
+          // EmailMessage is a constructor at runtime (in the Workers
+          // environment) but appears as only an interface in generated types.
+          // @ts-expect-error EmailMessage constructor exists at runtime
+          await message.reply(new EmailMessage(message.to, message.from, replyMime));
           break;
         }
       }
