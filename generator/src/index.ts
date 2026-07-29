@@ -9,7 +9,7 @@
 import { writeFileSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
-import { writeEML } from "./build";
+import { writeEML, type EmailParts } from "./build";
 import { validateEML, type ValidationResult } from "./validate";
 import { makePOData, computeTotal } from "./data";
 import * as s01 from "./scenarios/scenario-01";
@@ -18,7 +18,9 @@ import * as s03 from "./scenarios/scenario-03";
 import * as s09 from "./scenarios/scenario-09";
 import * as s10 from "./scenarios/scenario-10";
 
-const SCENARIOS: Record<string, (po: ReturnType<typeof makePOData>) => ReturnType<typeof s01.generate>> = {
+type GenerateFn = (po: ReturnType<typeof makePOData>) => Promise<EmailParts> | EmailParts;
+
+const SCENARIOS: Record<string, GenerateFn> = {
   "scenario-01": s01.generate,
   "scenario-02": s02.generate,
   "scenario-03": s03.generate,
@@ -42,7 +44,7 @@ async function main() {
       const po = makePOData();
       po.totalValue = computeTotal(po);
 
-      const parts = generateFn(po);
+      const parts = await generateFn(po);
       const filepath = await writeEML(name, i, parts);
       const result = await validateEML(filepath);
 

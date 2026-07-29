@@ -19,7 +19,7 @@ export interface EmailParts {
   html: string;
   attachments?: Array<{
     filename: string;
-    content: string;
+    content: string | Buffer;
     contentType: string;
   }>;
 }
@@ -47,7 +47,7 @@ export async function writeEML(
     html: parts.html,
     attachments: parts.attachments?.map((a) => ({
       filename: a.filename,
-      content: Buffer.from(a.content, "utf-8"),
+      content: Buffer.isBuffer(a.content) ? a.content : Buffer.from(a.content, "utf-8"),
       contentType: a.contentType,
     })),
     headers: {
